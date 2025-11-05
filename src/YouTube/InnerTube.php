@@ -53,8 +53,8 @@ class InnerTube
         }
 
         try {
-            $ch = curl_init('https://music.youtube.com/sw.js_data');
-            curl_setopt_array($ch, [
+            $ch = \curl_init('https://music.youtube.com/sw.js_data');
+            \curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_TIMEOUT => 10,
@@ -62,11 +62,11 @@ class InnerTube
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $content = curl_exec($ch);
-            curl_close($ch);
+            $content = \curl_exec($ch);
+            \curl_close($ch);
 
             // Extract visitor data from response
-            if ($content && preg_match('/"visitorData":"([^"]+)"/', $content, $matches)) {
+            if ($content && \preg_match('/"visitorData":"([^"]+)"/', $content, $matches)) {
                 $this->visitorData = $matches[1];
                 return $this->visitorData;
             }
@@ -110,7 +110,7 @@ class InnerTube
      */
     public function browse(string $browseId, array $params = []): array
     {
-        $body = array_merge([
+        $body = \array_merge([
             'context' => $this->context,
             'browseId' => $browseId
         ], $params);
@@ -220,10 +220,10 @@ class InnerTube
     {
         try {
             $url = self::BASE_URL . $endpoint . '?key=' . self::API_KEY;
-            $jsonBody = json_encode($body);
+            $jsonBody = \json_encode($body);
 
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
+            $ch = \curl_init($url);
+            \curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST => true,
                 CURLOPT_POSTFIELDS => $jsonBody,
@@ -243,10 +243,10 @@ class InnerTube
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $response = curl_exec($ch);
-            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = curl_error($ch);
-            curl_close($ch);
+            $response = \curl_exec($ch);
+            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = \curl_error($ch);
+            \curl_close($ch);
 
             if ($response === false) {
                 throw new \RuntimeException("cURL error: $error");
@@ -256,10 +256,10 @@ class InnerTube
                 throw new \RuntimeException("API request failed with status $statusCode");
             }
 
-            $data = json_decode($response, true);
+            $data = \json_decode($response, true);
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \RuntimeException('Failed to parse API response: ' . json_last_error_msg());
+            if (\json_last_error() !== JSON_ERROR_NONE) {
+                throw new \RuntimeException('Failed to parse API response: ' . \json_last_error_msg());
             }
 
             return $data;
@@ -301,9 +301,9 @@ class InnerTube
         $formats = $playerResponse['streamingData']['adaptiveFormats'];
 
         // Filter audio-only formats
-        $audioFormats = array_filter($formats, function($format) {
+        $audioFormats = \array_filter($formats, function($format) {
             return isset($format['mimeType']) &&
-                   str_contains($format['mimeType'], 'audio');
+                   \str_contains($format['mimeType'], 'audio');
         });
 
         if (empty($audioFormats)) {
@@ -311,7 +311,7 @@ class InnerTube
         }
 
         // Sort by bitrate (highest first)
-        usort($audioFormats, function($a, $b) {
+        \usort($audioFormats, function($a, $b) {
             return ($b['bitrate'] ?? 0) - ($a['bitrate'] ?? 0);
         });
 
