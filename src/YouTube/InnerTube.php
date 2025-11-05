@@ -301,23 +301,44 @@ class InnerTube
      * Extract streaming URL from player response
      *
      * @param array $playerResponse Player API response
-     * @return array|null Best audio format
+     * @return array|null Best audio format with URL
      */
     public static function extractStreamingUrl(array $playerResponse): ?array
     {
-        if (!isset($playerResponse['streamingData']['adaptiveFormats'])) {
+        // Check for streamingData
+        if (!isset($playerResponse['streamingData'])) {
+            \error_log('InnerTube: No streamingData in response');
             return null;
         }
 
-        $formats = $playerResponse['streamingData']['adaptiveFormats'];
+        $streamingData = $playerResponse['streamingData'];
+
+        // Try adaptiveFormats first (best quality)
+        $formats = $streamingData['adaptiveFormats'] ?? $streamingData['formats'] ?? [];
+
+        if (empty($formats)) {
+            \error_log('InnerTube: No formats found in streamingData');
+            return null;
+        }
 
         // Filter audio-only formats
         $audioFormats = \array_filter($formats, function($format) {
             return isset($format['mimeType']) &&
-                   \str_contains($format['mimeType'], 'audio');
+                   \str_contains($format['mimeType'], 'audio') &&
+                   isset($format['url']); // Must have direct URL
         });
 
         if (empty($audioFormats)) {
+            \error_log('InnerTube: No audio formats with URL found. Total formats: ' . \count($formats));
+
+            // Log first format for debugging
+            if (!empty($formats)) {
+                $firstFormat = $formats[0];
+                \error_log('InnerTube: First format keys: ' . \implode(', ', \array_keys($firstFormat)));
+                \error_log('InnerTube: Has URL: ' . (isset($firstFormat['url']) ? 'yes' : 'no'));
+                \error_log('InnerTube: Has signatureCipher: ' . (isset($firstFormat['signatureCipher']) ? 'yes' : 'no'));
+            }
+
             return null;
         }
 
@@ -327,6 +348,9 @@ class InnerTube
         });
 
         // Return best quality
-        return $audioFormats[0];
+        $bestFormat = $audioFormats[0];
+        \error_log('InnerTube: Selected format - mimeType: ' . ($bestFormat['mimeType'] ?? 'unknown') . ', bitrate: ' . ($bestFormat['bitrate'] ?? 0));
+
+        return $bestFormat;
     }
 }

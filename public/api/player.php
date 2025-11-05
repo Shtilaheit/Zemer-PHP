@@ -33,11 +33,29 @@ try {
         $youtube = new InnerTube();
         $playerResponse = $youtube->player($videoId);
 
+        // Log response status for debugging
+        $logger->debug("Player response received", [
+            'hasStreamingData' => isset($playerResponse['streamingData']),
+            'videoDetails' => $playerResponse['videoDetails']['title'] ?? 'unknown'
+        ]);
+
         // Extract best audio format
         $audioFormat = InnerTube::extractStreamingUrl($playerResponse);
 
         if (!$audioFormat) {
+            $logger->error("No audio format extracted", [
+                'hasStreamingData' => isset($playerResponse['streamingData']),
+                'adaptiveFormatsCount' => count($playerResponse['streamingData']['adaptiveFormats'] ?? []),
+                'formatsCount' => count($playerResponse['streamingData']['formats'] ?? [])
+            ]);
             throw new \RuntimeException('No audio formats available for this video');
+        }
+
+        if (!isset($audioFormat['url'])) {
+            $logger->error("Audio format has no URL", [
+                'formatKeys' => array_keys($audioFormat)
+            ]);
+            throw new \RuntimeException('Audio format does not contain streaming URL');
         }
 
         return [
