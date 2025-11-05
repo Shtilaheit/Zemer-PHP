@@ -1,0 +1,265 @@
+# ============================================
+# Metrolist .htaccess Configuration
+# High-performance settings for shared hosting
+# ============================================
+
+# Enable RewriteEngine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Force HTTPS (optional - uncomment if you have SSL)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Remove www (optional - uncomment if preferred)
+    # RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+    # RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+    # Don't rewrite files and directories
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Don't rewrite API requests
+    RewriteCond %{REQUEST_URI} !^/api/
+
+    # Rewrite everything else to index.html (for SPA routing)
+    RewriteRule ^(.*)$ /index.html [L,QSA]
+</IfModule>
+
+# ============================================
+# Compression - Reduce file sizes by 70-90%
+# ============================================
+
+<IfModule mod_deflate.c>
+    # Compress HTML, CSS, JavaScript, JSON, XML
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE image/svg+xml
+
+    # Don't compress images (already compressed)
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|ico)$ no-gzip
+
+    # Remove ETags (not needed with strong caching)
+    Header unset ETag
+    FileETag None
+</IfModule>
+
+# ============================================
+# Caching - Aggressive browser caching
+# ============================================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # Default expiration: 1 month
+    ExpiresDefault "access plus 1 month"
+
+    # HTML - 0 seconds (always check)
+    ExpiresByType text/html "access plus 0 seconds"
+
+    # CSS and JavaScript - 1 year
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/x-javascript "access plus 1 year"
+
+    # Images - 1 year
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+
+    # Fonts - 1 year
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+
+    # JSON - 1 hour
+    ExpiresByType application/json "access plus 1 hour"
+
+    # Manifest - 1 week
+    ExpiresByType application/manifest+json "access plus 1 week"
+</IfModule>
+
+# ============================================
+# Cache-Control Headers (alternative/backup to mod_expires)
+# ============================================
+
+<IfModule mod_headers.c>
+    # Default cache control
+    Header set Cache-Control "public, max-age=2592000"
+
+    # HTML - no cache
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+
+    # CSS/JS - cache for 1 year
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Images - cache for 1 year
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Fonts - cache for 1 year
+    <FilesMatch "\.(woff2|woff|ttf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # API responses - cache for 1 hour
+    <FilesMatch "\.php$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+
+    # Security headers
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # CORS headers (for API)
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# ============================================
+# MIME Types
+# ============================================
+
+<IfModule mod_mime.c>
+    # JavaScript
+    AddType application/javascript js
+    AddType text/javascript js
+
+    # JSON
+    AddType application/json json
+
+    # Fonts
+    AddType font/woff2 woff2
+    AddType font/woff woff
+    AddType font/ttf ttf
+    AddType application/font-woff2 woff2
+
+    # Images
+    AddType image/webp webp
+    AddType image/svg+xml svg
+
+    # Manifest
+    AddType application/manifest+json webmanifest
+
+    # UTF-8 encoding
+    AddDefaultCharset UTF-8
+    AddCharset UTF-8 .html .css .js .json .xml
+</IfModule>
+
+# ============================================
+# PHP Settings (if allowed by host)
+# ============================================
+
+<IfModule mod_php.c>
+    # Display errors in development (disable in production!)
+    php_flag display_errors On
+    php_flag display_startup_errors On
+
+    # Error reporting level
+    php_value error_reporting E_ALL
+
+    # Memory limit
+    php_value memory_limit 256M
+
+    # Max execution time
+    php_value max_execution_time 30
+
+    # Upload limits (if needed)
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+
+    # OPcache settings (if available)
+    php_flag opcache.enable On
+    php_value opcache.memory_consumption 128
+    php_value opcache.max_accelerated_files 10000
+    php_value opcache.revalidate_freq 60
+</IfModule>
+
+# ============================================
+# Directory Browsing
+# ============================================
+
+# Disable directory browsing
+Options -Indexes
+
+# Follow symbolic links (required for some hosts)
+Options +FollowSymLinks
+
+# ============================================
+# Error Pages (optional)
+# ============================================
+
+# ErrorDocument 404 /index.html
+# ErrorDocument 500 /500.html
+
+# ============================================
+# Block Access to Sensitive Files
+# ============================================
+
+# Protect .htaccess file
+<Files .htaccess>
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Protect composer files
+<FilesMatch "^composer\.(json|lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect git files
+<FilesMatch "^\.git">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect log files
+<FilesMatch "\.log$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect database files
+<FilesMatch "\.db$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ============================================
+# Performance Optimizations
+# ============================================
+
+# Disable ETags (not needed with strong caching)
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# Enable Keep-Alive
+<IfModule mod_headers.c>
+    Header set Connection keep-alive
+</IfModule>
