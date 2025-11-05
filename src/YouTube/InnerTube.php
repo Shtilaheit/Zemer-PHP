@@ -4,8 +4,8 @@ namespace Metrolist\YouTube;
 
 /**
  * YouTube InnerTube API Client
- * Uses native PHP curl - NO DEPENDENCIES REQUIRED!
- * Works on any basic PHP hosting
+ * Uses native PHP file_get_contents - NO CURL EXTENSION REQUIRED!
+ * Works on any basic PHP hosting with zero dependencies
  */
 class InnerTube
 {
@@ -53,17 +53,16 @@ class InnerTube
         }
 
         try {
-            $ch = \curl_init('https://music.youtube.com/sw.js_data');
-            \curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT => 10,
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                CURLOPT_SSL_VERIFYPEER => true,
-            ]);
-
-            $content = \curl_exec($ch);
-            \curl_close($ch);
+            $options = [
+                'http' => [
+                    'method' => 'GET',
+                    'header' => 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'timeout' => 10,
+                    'follow_location' => 1
+                ]
+            ];
+            $context = \stream_context_create($options);
+            $content = @\file_get_contents('https://music.youtube.com/sw.js_data', false, $context);
 
             // Extract visitor data from response
             if ($content && \preg_match('/"visitorData":"([^"]+)"/', $content, $matches)) {
@@ -210,7 +209,8 @@ class InnerTube
     }
 
     /**
-     * Make POST request to API using native PHP curl
+     * Make POST request to API using native PHP file_get_contents
+     * NO CURL EXTENSION REQUIRED!
      *
      * @param string $endpoint API endpoint
      * @param array $body Request body
@@ -222,34 +222,45 @@ class InnerTube
             $url = self::BASE_URL . $endpoint . '?key=' . self::API_KEY;
             $jsonBody = \json_encode($body);
 
-            $ch = \curl_init($url);
-            \curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $jsonBody,
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                    'Accept-Language: en-US,en;q=0.9',
-                    'Origin: https://music.youtube.com',
-                    'Referer: https://music.youtube.com/',
-                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                    'X-YouTube-Client-Name: 67',
-                    'X-YouTube-Client-Version: ' . self::CLIENT_VERSION,
+            $options = [
+                'http' => [
+                    'method' => 'POST',
+                    'header' =>
+                        "Content-Type: application/json\r\n" .
+                        "Accept: application/json\r\n" .
+                        "Accept-Language: en-US,en;q=0.9\r\n" .
+                        "Origin: https://music.youtube.com\r\n" .
+                        "Referer: https://music.youtube.com/\r\n" .
+                        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36\r\n" .
+                        "X-YouTube-Client-Name: 67\r\n" .
+                        "X-YouTube-Client-Version: " . self::CLIENT_VERSION,
+                    'content' => $jsonBody,
+                    'timeout' => 15,
+                    'follow_location' => 1,
+                    'ignore_errors' => true // Get response even on error status codes
                 ],
-                CURLOPT_TIMEOUT => 15,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_SSL_VERIFYPEER => true,
-            ]);
+                'ssl' => [
+                    'verify_peer' => true,
+                    'verify_peer_name' => true
+                ]
+            ];
 
-            $response = \curl_exec($ch);
-            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $error = \curl_error($ch);
-            \curl_close($ch);
+            $context = \stream_context_create($options);
+            $response = @\file_get_contents($url, false, $context);
 
             if ($response === false) {
-                throw new \RuntimeException("cURL error: $error");
+                throw new \RuntimeException("HTTP request failed");
+            }
+
+            // Parse HTTP response code from headers
+            $statusCode = 200;
+            if (isset($http_response_header)) {
+                foreach ($http_response_header as $header) {
+                    if (\preg_match('/^HTTP\/\d\.\d\s+(\d+)/', $header, $matches)) {
+                        $statusCode = (int)$matches[1];
+                        break;
+                    }
+                }
             }
 
             if ($statusCode !== 200) {
