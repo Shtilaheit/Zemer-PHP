@@ -448,3 +448,227 @@
 ::-webkit-scrollbar-thumb:hover {
     background: var(--md-sys-color-on-surface-variant);
 }
+
+/* ============================================
+   11. Mini Player (IMPROVED)
+   ============================================ */
+
+#mini-player {
+    position: fixed;
+    bottom: 72px; /* Above bottom nav */
+    left: 0;
+    right: 0;
+    background-color: var(--md-sys-color-surface-container-high);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    transform: translateY(150%);
+    transition: transform 0.3s var(--md-sys-motion-easing-emphasized);
+    z-index: 900;
+    box-shadow: var(--md-sys-elevation-3);
+}
+
+#mini-player.active {
+    transform: translateY(0);
+}
+
+.player-content {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0; /* Enable text truncation */
+}
+
+.player-thumbnail {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--md-sys-shape-corner-sm);
+    object-fit: cover;
+    box-shadow: var(--md-sys-elevation-1);
+    flex-shrink: 0;
+}
+
+.player-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.player-title {
+    font-size: var(--md-sys-typescale-title-medium);
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.player-artist {
+    font-size: var(--md-sys-typescale-body-small);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.player-btn {
+    background: none;
+    border: none;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+.player-btn:hover {
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+.player-btn:active {
+    transform: scale(0.95);
+}
+
+.player-play-btn {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    min-width: 56px;
+    min-height: 56px;
+}
+
+.player-play-btn:hover {
+    background-color: var(--md-sys-color-primary);
+    opacity: 0.9;
+}
+
+/* Progress Bar */
+.player-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.player-current-time,
+.player-duration {
+    font-size: var(--md-sys-typescale-label-small);
+    color: var(--md-sys-color-on-surface-variant);
+    min-width: 40px;
+    text-align: center;
+}
+
+.player-progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: var(--md-sys-color-surface-variant);
+    border-radius: var(--md-sys-shape-corner-full);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.player-progress-bar:hover {
+    height: 10px;
+}
+
+.player-progress-filled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--md-sys-color-primary);
+    border-radius: var(--md-sys-shape-corner-full);
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+/* Volume Control */
+.player-volume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-volume-bar {
+    flex: 1;
+    height: 6px;
+    background-color: var(--md-sys-color-surface-variant);
+    border-radius: var(--md-sys-shape-corner-full);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    max-width: 100px;
+}
+
+.player-volume-filled {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: var(--md-sys-color-secondary);
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: width 0.1s linear;
+}
+
+/* Responsive Design for Player */
+@media (min-width: 768px) {
+    #mini-player {
+        bottom: 0;
+    }
+
+    .player-content {
+        flex-direction: row;
+        align-items: center;
+        padding: 16px 24px;
+    }
+
+    .player-info {
+        flex: 1;
+        max-width: 400px;
+    }
+
+    .player-controls {
+        flex: 0 0 auto;
+    }
+
+    .player-progress-container {
+        flex: 1;
+        max-width: 400px;
+    }
+
+    .player-volume {
+        flex: 0 0 auto;
+        min-width: 120px;
+    }
+}
+
+/* List item hover effect */
+.list-item-hover {
+    transition: all 0.2s ease;
+}
+
+.list-item-hover:hover {
+    background-color: var(--md-sys-color-surface-variant);
+    transform: translateX(4px);
+}
+
+.list-item-hover:active {
+    transform: scale(0.98);
+}
+
+/* Additional utility */
+.ml-2 {
+    margin-left: 16px;
+}
