@@ -2,14 +2,10 @@
 
 namespace Metrolist\YouTube;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Handler\CurlMultiHandler;
-use GuzzleHttp\RequestOptions;
-
 /**
  * YouTube InnerTube API Client
- * High-performance HTTP client with connection pooling
+ * Uses native PHP curl - NO DEPENDENCIES REQUIRED!
+ * Works on any basic PHP hosting
  */
 class InnerTube
 {
@@ -17,46 +13,12 @@ class InnerTube
     private const CLIENT_VERSION = '1.20250310.01.00';
     private const API_KEY = 'AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30';
 
-    private static ?Client $httpClient = null;
     private ?string $visitorData = null;
     private array $context;
 
     public function __construct()
     {
         $this->context = $this->buildContext();
-    }
-
-    /**
-     * Get singleton HTTP client with connection pooling
-     */
-    private function getClient(): Client
-    {
-        if (self::$httpClient === null) {
-            $handler = new CurlMultiHandler([
-                'max_handles' => 50 // Connection pool size
-            ]);
-
-            $stack = HandlerStack::create($handler);
-
-            self::$httpClient = new Client([
-                'base_uri' => self::BASE_URL,
-                'timeout' => 15,
-                'connect_timeout' => 5,
-                'http_errors' => false,
-                'handler' => $stack,
-                RequestOptions::HEADERS => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                    'Accept' => 'application/json',
-                    'Accept-Language' => 'en-US,en;q=0.9',
-                    'Origin' => 'https://music.youtube.com',
-                    'Referer' => 'https://music.youtube.com/',
-                    'X-YouTube-Client-Name' => '67', // WEB_REMIX
-                    'X-YouTube-Client-Version' => self::CLIENT_VERSION,
-                ]
-            ]);
-        }
-
-        return self::$httpClient;
     }
 
     /**
@@ -91,16 +53,20 @@ class InnerTube
         }
 
         try {
-            $response = $this->getClient()->get('https://music.youtube.com/sw.js_data', [
-                RequestOptions::HEADERS => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                ]
+            $ch = curl_init('https://music.youtube.com/sw.js_data');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $content = $response->getBody()->getContents();
+            $content = curl_exec($ch);
+            curl_close($ch);
 
             // Extract visitor data from response
-            if (preg_match('/"visitorData":"([^"]+)"/', $content, $matches)) {
+            if ($content && preg_match('/"visitorData":"([^"]+)"/', $content, $matches)) {
                 $this->visitorData = $matches[1];
                 return $this->visitorData;
             }
@@ -244,7 +210,7 @@ class InnerTube
     }
 
     /**
-     * Make POST request to API
+     * Make POST request to API using native PHP curl
      *
      * @param string $endpoint API endpoint
      * @param array $body Request body
@@ -253,23 +219,44 @@ class InnerTube
     private function post(string $endpoint, array $body): array
     {
         try {
-            $url = $endpoint . '?key=' . self::API_KEY;
+            $url = self::BASE_URL . $endpoint . '?key=' . self::API_KEY;
+            $jsonBody = json_encode($body);
 
-            $response = $this->getClient()->post($url, [
-                RequestOptions::JSON => $body,
-                RequestOptions::HEADERS => [
-                    'Content-Type' => 'application/json'
-                ]
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $jsonBody,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                    'Accept-Language: en-US,en;q=0.9',
+                    'Origin: https://music.youtube.com',
+                    'Referer: https://music.youtube.com/',
+                    'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'X-YouTube-Client-Name: 67',
+                    'X-YouTube-Client-Version: ' . self::CLIENT_VERSION,
+                ],
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_SSL_VERIFYPEER => true,
             ]);
 
-            $statusCode = $response->getStatusCode();
-            $content = $response->getBody()->getContents();
+            $response = curl_exec($ch);
+            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($response === false) {
+                throw new \RuntimeException("cURL error: $error");
+            }
 
             if ($statusCode !== 200) {
                 throw new \RuntimeException("API request failed with status $statusCode");
             }
 
-            $data = json_decode($content, true);
+            $data = json_decode($response, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new \RuntimeException('Failed to parse API response: ' . json_last_error_msg());
