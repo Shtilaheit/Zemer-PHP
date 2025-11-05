@@ -239,34 +239,43 @@ class MusicPlayer {
         debug.log('Loading song:', song);
 
         this.currentSong = song;
+        this.showMiniPlayer(true);
 
         try {
-            // Show loading state
-            this.showMiniPlayer(true);
-
-            // Get streaming URL
+            // Try to get direct streaming URL first
             const data = await api.getStreamingUrl(song.videoId);
 
-            if (!data.streamingUrl) {
-                throw new Error('No streaming URL available');
+            if (data.streamingUrl) {
+                debug.log('Got direct streaming URL');
+                this.audio.src = data.streamingUrl;
+                this.audio.load();
+                this.showMiniPlayer(false);
+                await this.play();
+                return;
             }
-
-            debug.log('Got streaming URL:', data.streamingUrl);
-
-            // Load audio
-            this.audio.src = data.streamingUrl;
-            this.audio.load();
-
-            // Show mini player
-            this.showMiniPlayer(false);
-
-            // Auto-play
-            await this.play();
-
         } catch (error) {
-            debug.error('Failed to load song:', error);
-            this.showError('Failed to play: ' + error.message);
+            debug.warn('Direct streaming failed, using YouTube embed:', error.message);
         }
+
+        // Fallback to YouTube IFrame embed
+        this.loadYouTubeEmbed(song);
+    }
+
+    loadYouTubeEmbed(song) {
+        debug.log('Loading YouTube embed for:', song.videoId);
+
+        // Create YouTube embed URL
+        const embedUrl = `https://www.youtube.com/embed/${song.videoId}?autoplay=1&enablejsapi=1&origin=${window.location.origin}`;
+
+        // Show mini player with embed message
+        this.showMiniPlayer(false, true);
+        this.isPlaying = true;
+        appState.setPlaying(true);
+
+        // Store embed URL for full player
+        this.embedUrl = embedUrl;
+
+        debug.log('YouTube embed ready. Click mini player to open full player.');
     }
 
     async play() {
@@ -413,7 +422,7 @@ class MusicPlayer {
         }, 5000);
     }
 
-    showMiniPlayer(loading = false) {
+    showMiniPlayer(loading = false, isEmbed = false) {
         const miniPlayer = document.getElementById('mini-player');
         if (!miniPlayer) return;
 
@@ -431,6 +440,18 @@ class MusicPlayer {
         const song = this.currentSong;
         if (!song) return;
 
+        // Add click handler to open full player
+        miniPlayer.onclick = () => this.showFullPlayer();
+        miniPlayer.style.cursor = 'pointer';
+
+        const embedMessage = isEmbed ? `
+            <div style="text-align: center; margin-top: 8px; padding: 8px; background: var(--md-sys-color-primary-container); border-radius: 8px;">
+                <p class="body-small" style="color: var(--md-sys-color-on-primary-container);">
+                    🎵 Playing via YouTube · Tap to expand
+                </p>
+            </div>
+        ` : '';
+
         miniPlayer.innerHTML = `
             <div class="player-content">
                 <div class="player-info">
@@ -438,12 +459,12 @@ class MusicPlayer {
                          class="player-thumbnail"
                          alt="${song.title}">
                     <div class="player-text">
-                        <div class="player-title text-truncate">${song.title || 'Unknown'}</div>
-                        <div class="player-artist text-truncate">${song.artist || 'Unknown Artist'}</div>
+                        <div class="player-title text-truncate">${escapeHtml(song.title || 'Unknown')}</div>
+                        <div class="player-artist text-truncate">${escapeHtml(song.artist || 'Unknown Artist')}</div>
                     </div>
                 </div>
 
-                <div class="player-controls">
+                <div class="player-controls" onclick="event.stopPropagation()">
                     <button class="player-btn" onclick="player.playPrevious()" title="Previous">
                         <span style="font-size: 24px;">⏮</span>
                     </button>
@@ -455,27 +476,116 @@ class MusicPlayer {
                     <button class="player-btn" onclick="player.playNext()" title="Next">
                         <span style="font-size: 24px;">⏭</span>
                     </button>
+
+                    <button class="player-btn" onclick="player.showFullPlayer()" title="Expand Player">
+                        <span style="font-size: 24px;">⬆️</span>
+                    </button>
                 </div>
 
-                <div class="player-progress-container">
-                    <span class="player-current-time">0:00</span>
-                    <div class="player-progress-bar" onclick="player.seekFromClick(event)">
-                        <div class="player-progress-filled"></div>
-                    </div>
-                    <span class="player-duration">0:00</span>
-                </div>
-
-                <div class="player-volume">
-                    <span style="font-size: 20px;">🔊</span>
-                    <div class="player-volume-bar" onclick="player.setVolumeFromClick(event)">
-                        <div class="player-volume-filled" style="width: ${this.audio.volume * 100}%;"></div>
-                    </div>
-                </div>
+                ${embedMessage}
             </div>
         `;
 
-        // Update initial state
-        this.updateProgress();
+        // Update initial state if not using embed
+        if (!isEmbed) {
+            this.updateProgress();
+        }
+    }
+
+    showFullPlayer() {
+        const song = this.currentSong;
+        if (!song) return;
+
+        debug.log('Opening full player');
+
+        // Create full player modal
+        const modal = document.createElement('div');
+        modal.id = 'full-player-modal';
+        modal.className = 'full-player-modal';
+        modal.innerHTML = `
+            <div class="full-player-content">
+                <div class="full-player-header">
+                    <button class="full-player-close" onclick="player.closeFullPlayer()">
+                        <span style="font-size: 32px;">⬇️</span>
+                    </button>
+                    <h2 class="title-medium">Now Playing</h2>
+                    <div style="width: 48px;"></div>
+                </div>
+
+                <div class="full-player-artwork">
+                    <img src="${song.thumbnail || '/assets/icons/default-album.svg'}"
+                         alt="${escapeHtml(song.title)}"
+                         style="width: 100%; max-width: 400px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+                </div>
+
+                <div class="full-player-info">
+                    <h1 class="headline-medium">${escapeHtml(song.title || 'Unknown')}</h1>
+                    <p class="body-large" style="color: var(--md-sys-color-on-surface-variant); margin-top: 8px;">
+                        ${escapeHtml(song.artist || 'Unknown Artist')}
+                    </p>
+                    ${song.album ? `<p class="body-medium" style="color: var(--md-sys-color-on-surface-variant); margin-top: 4px;">${escapeHtml(song.album)}</p>` : ''}
+                </div>
+
+                ${this.embedUrl ? `
+                    <div class="full-player-embed">
+                        <iframe
+                            width="100%"
+                            height="315"
+                            src="${this.embedUrl}"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                            style="border-radius: 12px; max-width: 600px; margin: 0 auto; display: block;">
+                        </iframe>
+                    </div>
+                ` : `
+                    <div class="full-player-controls-container">
+                        <div class="full-player-progress">
+                            <span class="player-current-time">0:00</span>
+                            <div class="player-progress-bar" onclick="player.seekFromClick(event)" style="flex: 1; margin: 0 16px;">
+                                <div class="player-progress-filled"></div>
+                            </div>
+                            <span class="player-duration">0:00</span>
+                        </div>
+
+                        <div class="full-player-controls">
+                            <button class="full-player-btn" onclick="player.playPrevious()">
+                                <span style="font-size: 40px;">⏮</span>
+                            </button>
+
+                            <button class="full-player-btn full-player-play-btn" onclick="player.toggle()">
+                                <span style="font-size: 56px;">${this.isPlaying ? '⏸' : '▶'}</span>
+                            </button>
+
+                            <button class="full-player-btn" onclick="player.playNext()">
+                                <span style="font-size: 40px;">⏭</span>
+                            </button>
+                        </div>
+
+                        <div class="full-player-volume">
+                            <span style="font-size: 24px;">🔊</span>
+                            <div class="player-volume-bar" onclick="player.setVolumeFromClick(event)" style="flex: 1; max-width: 300px; margin: 0 16px;">
+                                <div class="player-volume-filled" style="width: ${this.audio.volume * 100}%;"></div>
+                            </div>
+                            <span class="body-small">${Math.round(this.audio.volume * 100)}%</span>
+                        </div>
+                    </div>
+                `}
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Animate in
+        setTimeout(() => modal.classList.add('active'), 10);
+    }
+
+    closeFullPlayer() {
+        const modal = document.getElementById('full-player-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        }
     }
 
     seekFromClick(event) {
@@ -678,7 +788,7 @@ async function performSearch(query) {
     }
 }
 
-// FIXED: Better YouTube API result parser with multiple videoId sources
+// FIXED: Comprehensive YouTube API result parser with extensive videoId extraction
 function parseSearchResults(results) {
     const items = [];
 
@@ -693,31 +803,69 @@ function parseSearchResults(results) {
                 const renderer = item?.musicResponsiveListItemRenderer;
                 if (!renderer) continue;
 
-                // FIXED: Extract videoId from multiple possible locations
+                // Extract videoId from MANY possible locations
                 let videoId = null;
 
-                // Try method 1: navigationEndpoint (most common)
+                // Method 1: overlay play button
                 videoId = renderer?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
 
-                // Try method 2: flexColumns navigation
+                // Method 2: flexColumns first column navigation
                 if (!videoId) {
                     const firstColumn = renderer?.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer;
                     videoId = firstColumn?.text?.runs?.[0]?.navigationEndpoint?.watchEndpoint?.videoId;
                 }
 
-                // Try method 3: playlistItemData
+                // Method 3: menu navigation items
+                if (!videoId && renderer?.menu) {
+                    const menuItems = renderer?.menu?.menuRenderer?.items || [];
+                    for (const menuItem of menuItems) {
+                        const menuNav = menuItem?.menuNavigationItemRenderer?.navigationEndpoint?.watchEndpoint?.videoId;
+                        const menuService = menuItem?.menuServiceItemRenderer?.serviceEndpoint?.queueAddEndpoint?.queueTarget?.videoId;
+                        if (menuNav) {
+                            videoId = menuNav;
+                            break;
+                        }
+                        if (menuService) {
+                            videoId = menuService;
+                            break;
+                        }
+                    }
+                }
+
+                // Method 4: playlistItemData
                 if (!videoId) {
                     videoId = renderer?.playlistItemData?.videoId;
                 }
 
-                // Try method 4: direct navigation endpoint
+                // Method 5: direct navigation endpoint
                 if (!videoId) {
                     videoId = renderer?.navigationEndpoint?.watchEndpoint?.videoId;
+                }
+
+                // Method 6: Deep search in all navigationEndpoints
+                if (!videoId) {
+                    const searchObject = (obj, depth = 0) => {
+                        if (depth > 10) return null; // Prevent infinite recursion
+                        if (obj?.watchEndpoint?.videoId) return obj.watchEndpoint.videoId;
+                        if (obj?.videoId && typeof obj.videoId === 'string' && obj.videoId.length === 11) {
+                            return obj.videoId;
+                        }
+                        if (typeof obj === 'object' && obj !== null) {
+                            for (const key in obj) {
+                                const result = searchObject(obj[key], depth + 1);
+                                if (result) return result;
+                            }
+                        }
+                        return null;
+                    };
+                    videoId = searchObject(renderer);
                 }
 
                 // Skip if no videoId found
                 if (!videoId) {
                     debug.warn('No videoId found for item:', renderer);
+                    // Log the first few keys to help debug
+                    debug.log('Available keys:', Object.keys(renderer).slice(0, 10).join(', '));
                     continue;
                 }
 

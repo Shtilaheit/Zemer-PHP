@@ -672,3 +672,138 @@
 .ml-2 {
     margin-left: 16px;
 }
+
+/* ============================================
+   12. Full Player Modal
+   ============================================ */
+
+.full-player-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--md-sys-color-background);
+    z-index: 1000;
+    transform: translateY(100%);
+    transition: transform 0.3s var(--md-sys-motion-easing-emphasized);
+    overflow-y: auto;
+}
+
+.full-player-modal.active {
+    transform: translateY(0);
+}
+
+.full-player-content {
+    padding: 24px;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    min-height: 100vh;
+}
+
+.full-player-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.full-player-close {
+    background: none;
+    border: none;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: background-color 0.2s;
+}
+
+.full-player-close:hover {
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+.full-player-artwork {
+    display: flex;
+    justify-content: center;
+    margin: 32px 0;
+}
+
+.full-player-info {
+    text-align: center;
+}
+
+.full-player-embed {
+    margin: 24px 0;
+}
+
+.full-player-controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: auto;
+}
+
+.full-player-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.full-player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+}
+
+.full-player-btn {
+    background: none;
+    border: none;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    padding: 16px;
+    border-radius: var(--md-sys-shape-corner-full);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.full-player-btn:hover {
+    background-color: var(--md-sys-color-surface-variant);
+    transform: scale(1.05);
+}
+
+.full-player-btn:active {
+    transform: scale(0.95);
+}
+
+.full-player-play-btn {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    padding: 24px;
+}
+
+.full-player-play-btn:hover {
+    background-color: var(--md-sys-color-primary);
+    opacity: 0.9;
+}
+
+.full-player-volume {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* Make mini player clickable */
+#mini-player.active {
+    cursor: pointer;
+}
+
+#mini-player.active:hover {
+    background-color: var(--md-sys-color-surface-container-highest);
+}
